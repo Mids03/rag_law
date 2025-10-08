@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Indian Law Chatbot</title>
+    <style>
+      /* CSS for a clean chat interface */
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #e9ebee;
+      }
+      .chat-container {
+        width: 90%;
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        height: 85vh;
+      }
+      .chat-header {
+        background-color: #007bff;
+        color: white;
+        padding: 15px;
+        border-radius: 10px 10px 0 0;
+        text-align: center;
+        font-size: 1.2em;
+        font-weight: bold;
+      }
+      .chat-history {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto;
+        border-bottom: 1px solid #eee;
+        scroll-behavior: smooth;
+      }
+      .message {
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        border-radius: 20px;
+        max-width: 70%;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      .user-message {
+        background-color: #dcf8c6;
+        margin-left: auto;
+        text-align: right;
+      }
+      .bot-message {
+        background-color: #f1f0f0;
+        margin-right: auto;
+        text-align: left;
+      }
+      .chat-input {
+        display: flex;
+        padding: 10px;
+        border-top: 1px solid #eee;
+      }
+      .chat-input input {
+        flex-grow: 1;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        margin-right: 10px;
+        font-size: 1em;
+      }
+      .chat-input button {
+        padding: 12px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      .chat-input button:hover:not(:disabled) {
+        background-color: #0056b3;
+      }
+      .chat-input button:disabled {
+        background-color: #a0c3e8;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">AI Lawyer for Indian Law 🇮🇳</div>
+      <div class="chat-history" id="chat-history">
+        <div class="message bot-message">
+          Welcome! I am an AI lawyer specializing in Indian law. Ask me a
+          question based on the legal documents provided to my developer.
+        </div>
+      </div>
+      <div class="chat-input">
+        <input
+          type="text"
+          id="user-input"
+          placeholder="Ask your legal question..."
+          onkeypress="if(event.key === 'Enter') sendMessage()"
+        />
+        <button onclick="sendMessage()" id="send-button">Send</button>
+      </div>
+    </div>
+
+    <script>
+      // *** IMPORTANT: REPLACE THIS WITH YOUR DEPLOYED HUGGING FACE SPACE URL ***
+      const API_URL = "YOUR_HUGGING_FACE_SPACE_URL/chat";
+      // Example format: "https://<your-username>-<your-space-name>.hf.space/chat"
+
+      // Generate a unique session ID for this user instance
+      let sessionId = "session_" + Math.random().toString(36).substring(2, 11);
+
+      function appendMessage(sender, text) {
+        const history = document.getElementById("chat-history");
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+        messageDiv.classList.add(sender + "-message");
+        // Use innerHTML to handle potential line breaks or basic formatting from the bot
+        messageDiv.innerHTML = text.replace(/\n/g, "<br>");
+        history.appendChild(messageDiv);
+        history.scrollTop = history.scrollHeight; // Auto-scroll
+      }
+
+      async function sendMessage() {
+        const inputField = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
+        const query = inputField.value.trim();
+
+        if (query === "") return;
+
+        // 1. Display user message and lock input
+        appendMessage("user", query);
+        inputField.value = "";
+        sendButton.disabled = true;
+        inputField.disabled = true;
+
+        // 2. Display loading indicator
+        const history = document.getElementById("chat-history");
+        const loadingDiv = document.createElement("div");
+        loadingDiv.classList.add("message", "bot-message");
+        loadingDiv.id = "loading-indicator";
+        loadingDiv.innerHTML = "Thinking... Please wait.";
+        history.appendChild(loadingDiv);
+        history.scrollTop = history.scrollHeight;
+
+        try {
+          // 3. API Call
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query: query, session_id: sessionId }),
+          });
+
+          // Remove loading indicator
+          const loading = document.getElementById("loading-indicator");
+          if (loading) loading.remove();
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          appendMessage("bot", data.response);
+        } catch (error) {
+          // Handle API error
+          const loading = document.getElementById("loading-indicator");
+          if (loading) loading.remove();
+
+          console.error("Error fetching response:", error);
+          appendMessage(
+            "bot",
+            "Server Error: Cannot connect to the AI lawyer. Please check the backend deployment or API URL."
+          );
+        } finally {
+          // Unlock input fields
+          sendButton.disabled = false;
+          inputField.disabled = false;
+          inputField.focus();
+        }
+      }
+    </script>
+  </body>
+</html>
